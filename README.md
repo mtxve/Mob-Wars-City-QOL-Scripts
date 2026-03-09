@@ -18,3 +18,4 @@ Current Scripts: w/install links
 
 When a group gets the ladder pulled: 
 - [Ghost Syndicates Crime/Gym Script Video](https://youtu.be/ueagJCGe1BU) - Person who provided this requests to remain anonymous.
+  - This video was shared with me shortly after the recent decision to outlaw gym scripts, you can tell by the nav bar that it was in operation/being shared post Gym Helper.
