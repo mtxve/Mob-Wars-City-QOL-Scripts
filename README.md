@@ -12,6 +12,6 @@ Links to Tampermonkey
 
 
 Current Scripts: 
-- Crime Helper
+- [Crime Helper](https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.user.js)
   - Adds a panel to streamline the process of spamming crimes.
-- "Join All" Boss Fights
+- ["Join All" Boss Fights](https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.user.js)
