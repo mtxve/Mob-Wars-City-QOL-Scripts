@@ -15,3 +15,6 @@ Current Scripts: w/install links
 - [Crime Helper](https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.user.js) - [Screenshot](https://i.ibb.co/RT8nrF8x/Screenshot-2026-03-09-at-00-02-12.png)
   - Adds a panel to streamline the process of spamming crimes.
 - ["Join All" Boss Fights](https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.user.js) - [Screenshot](https://i.ibb.co/b5KJCbHb/Screenshot-2026-03-09-at-00-53-21.png)
+
+When a group gets the ladder pulled: 
+- [Ghost Syndicates Crime/Gym Script Video](https://youtu.be/ueagJCGe1BU) - Person who provided this requests to remain anonymous.
