@@ -2,10 +2,10 @@
 // @name         Mobwars Crime Helper
 // @namespace    mobwarscity
 // @author       Asemov/mtxe
-// @version      1.6.0
+// @version      1.6.1
 // @description  QOL Helper to lessen necessary actions.
-// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.user.js
-// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.user.js
+// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.js
+// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.js
 // @match        https://mobwarscity.com/crime.php
 // @run-at       document-idle
 // @grant        none
@@ -87,13 +87,6 @@
     staminaThreshold: DEFAULTS.staminaThreshold,
     panelHidden: false,
     blockedUntil: 0
-  };
-  const DOM_CACHE = {
-    doc: null,
-    nerveBar: null,
-    staminaBar: null,
-    crimeButtons: null,
-    slotButtons: new Map()
   };
 
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -216,43 +209,17 @@
     return 0;
   }
 
-  function ensureDomCache(doc) {
-    if (DOM_CACHE.doc === doc) return DOM_CACHE;
-    DOM_CACHE.doc = doc;
-    DOM_CACHE.nerveBar = null;
-    DOM_CACHE.staminaBar = null;
-    DOM_CACHE.crimeButtons = null;
-    DOM_CACHE.slotButtons.clear();
-    return DOM_CACHE;
-  }
-
-  function getCachedBar(doc, type) {
-    const cache = ensureDomCache(doc);
-    const key = type === 'nerve' ? 'nerveBar' : 'staminaBar';
-    const cached = cache[key];
-    if (cached && cached.isConnected) return cached;
-    const bar = doc.querySelector(type === 'nerve' ? SELECTORS.nerveBar : SELECTORS.staminaBar);
-    cache[key] = bar || null;
-    return cache[key];
-  }
-
-  function getCachedSlotButton(doc, slot) {
-    const cache = ensureDomCache(doc);
-    const cached = cache.slotButtons.get(slot);
-    if (cached && cached.isConnected) return cached;
-    const button = doc.querySelector(`button.quickbar-slot[data-slot="${slot}"]`);
-    cache.slotButtons.set(slot, button || null);
-    return button || null;
-  }
-
-  function getCachedCrimeButtons(doc) {
-    const cache = ensureDomCache(doc);
-    if (Array.isArray(cache.crimeButtons) && cache.crimeButtons.some((button) => button && button.isConnected)) {
-      return cache.crimeButtons;
-    }
+  function getCrimeButtons(doc) {
     const scopedRoot = doc.querySelector('#crimeForm') || doc.querySelector('.crimeGrid') || doc;
-    cache.crimeButtons = Array.from(scopedRoot.querySelectorAll(SELECTORS.crimeButtons)).filter(isVisible);
-    return cache.crimeButtons;
+    return Array.from(scopedRoot.querySelectorAll(SELECTORS.crimeButtons)).filter(isVisible);
+  }
+
+  function getResourceBarElement(doc, type) {
+    return doc.querySelector(type === 'nerve' ? SELECTORS.nerveBar : SELECTORS.staminaBar);
+  }
+
+  function getSlotButton(doc, slot) {
+    return doc.querySelector(`button.quickbar-slot[data-slot="${slot}"]`);
   }
 
   function compactText(value) {
@@ -373,7 +340,7 @@
 
   function getCrimeDisplayLabel(doc, crimeIndex) {
     const targetIndex = canonicalCrimeIndex(crimeIndex, DEFAULTS.crimeIndex);
-    const button = getCachedCrimeButtons(doc)[targetIndex - 1] || null;
+    const button = getCrimeButtons(doc)[targetIndex - 1] || null;
     const name = getCrimeNameCandidates(button, targetIndex)[0] || '';
     return name ? `${targetIndex} - ${name}` : String(targetIndex);
   }
@@ -879,7 +846,7 @@
   }
 
   function parseResourceBar(doc, type) {
-    const bar = getCachedBar(doc, type);
+    const bar = getResourceBarElement(doc, type);
     if (!bar) return null;
 
     const parseFractionText = (text) => {
@@ -940,7 +907,7 @@
   }
 
   async function useSlot(doc, kind, slot) {
-    const btn = getCachedSlotButton(doc, slot);
+    const btn = getSlotButton(doc, slot);
     if (!btn) throw new Error(`${kind}: slot ${slot} not found`);
     if (isSlotEmpty(btn)) throw new Error(`${kind}: slot ${slot} is empty`);
     clickElement(btn);
@@ -970,7 +937,7 @@
       if (forced && isVisible(forced)) return forced;
     }
 
-    const orderedButtons = getCachedCrimeButtons(doc);
+    const orderedButtons = getCrimeButtons(doc);
     if (orderedButtons.length > 0) {
       const picked = orderedButtons[targetIndex - 1] || orderedButtons[0];
       if (picked && isVisible(picked)) return picked;
@@ -1257,7 +1224,7 @@
       button = null;
     }
     if (!button) {
-      const reference = getCachedCrimeButtons(gameDoc)[0] || null;
+      const reference = getCrimeButtons(gameDoc)[0] || null;
       button = createGameStyledButton(reference, 'Hide Helper');
       button.id = ID.toggleButton;
       button.addEventListener('click', (event) => {
