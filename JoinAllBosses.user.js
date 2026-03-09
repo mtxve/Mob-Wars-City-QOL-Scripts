@@ -2,10 +2,10 @@
 // @name         Join All Mob Wars City Bosses
 // @namespace    mobwarscity
 // @author       Asemov/mtxe
-// @version      1.0.0
+// @version      1.0.1
 // @description  Adds a "<Join All>" link next to the Boss Fights tab.
-// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.user.js
-// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.user.js
+// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.js
+// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.js
 // @match        https://mobwarscity.com/*
 // @run-at       document-idle
 // @grant        none
@@ -19,8 +19,7 @@
   const INLINE_MARKER_ATTR = 'data-mw-join-all-inline';
   const BOSS_LINK_SELECTORS = [
     'li[data-link="boss.php"] > a',
-    '.mobile-menu_item[data-slug="boss_fights"] > a',
-    'a[href="boss.php"]'
+    '.mobile-menu_item[data-slug="boss_fights"] > a'
   ].join(', ');
   const OBSERVE_TIMEOUT_MS = 2000;
 
