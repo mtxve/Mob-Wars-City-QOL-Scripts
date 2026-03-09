@@ -4,6 +4,8 @@
 // @author       Asemov/mtxe
 // @version      1.6.0
 // @description  QOL Helper to lessen necessary actions.
+// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.js
+// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.js
 // @match        https://mobwarscity.com/crime.php
 // @run-at       document-idle
 // @grant        none
