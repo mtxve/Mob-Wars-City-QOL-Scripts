@@ -4,8 +4,8 @@
 // @author       Asemov/mtxe
 // @version      1.0.0
 // @description  Adds a "<Join All>" link next to the Boss Fights tab.
-// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.js
-// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.js
+// @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.user.js
+// @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/JoinAllBosses.user.js
 // @match        https://mobwarscity.com/*
 // @run-at       document-idle
 // @grant        none
