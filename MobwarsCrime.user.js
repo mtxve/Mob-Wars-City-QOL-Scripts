@@ -2,7 +2,7 @@
 // @name         Mobwars Crime Helper
 // @namespace    mobwarscity
 // @author       Asemov/mtxe
-// @version      1.6.1
+// @version      1.6.2
 // @description  QOL Helper to lessen necessary actions.
 // @download     https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.js
 // @update       https://raw.githubusercontent.com/mtxve/Mob-Wars-City-QOL-Scripts/refs/heads/main/MobwarsCrime.js
@@ -19,7 +19,7 @@
     staminaBar: '.progress_hold[data-tippy-content*="Stamina"]',
     commitButton: '',
     crimeButtons:
-      '.crimeGrid .split .splitHeading .current.button button, .crimeGrid .split .splitHeading .current.button input[type="submit"], .crimeGrid .split button, .crimeGrid .split input[type="submit"]'
+      '.crimeGrid .crime-action .crime-commit-btn, .crimeGrid .crime-action input[type="submit"], .crimeGrid .split .splitHeading .current.button button, .crimeGrid .split .splitHeading .current.button input[type="submit"]'
   };
 
   const DEFAULTS = {
@@ -845,6 +845,229 @@
     return true;
   }
 
+  function getGameLocationHref(doc) {
+    try {
+      return doc?.defaultView?.location?.href || location.href;
+    } catch (_) {
+      return location.href;
+    }
+  }
+
+  function absoluteGameUrl(doc, url) {
+    return new URL(url || getGameLocationHref(doc), getGameLocationHref(doc)).href;
+  }
+
+  function updateCrimeActionAvailability(doc, stats) {
+    const currentNerve = parseIntSafe(stats?.nerve?.current);
+    if (currentNerve === null) return;
+
+    for (const wrapper of doc.querySelectorAll('.crime-action')) {
+      const cost = parseIntSafe(wrapper.getAttribute('data-nerve-cost'));
+      const button = wrapper.querySelector('.crime-commit-btn');
+      const disabled = wrapper.querySelector('.crime-commit-disabled');
+      if (!button || !disabled || cost === null) continue;
+      button.style.display = currentNerve >= cost ? '' : 'none';
+      disabled.style.display = currentNerve >= cost ? 'none' : '';
+    }
+  }
+
+  function updateProgressBar(doc, selector, label, stats) {
+    const bar = doc.querySelector(selector);
+    if (!bar || !stats) return;
+
+    const current = parseIntSafe(stats.current);
+    const max = parseIntSafe(stats.max);
+    if (current === null || max === null || max <= 0) return;
+
+    const percent =
+      toFiniteNumber(Number(stats.barPerc)) ?? Math.round((current / max) * 100);
+    bar.style.setProperty('--progress', String(percent));
+    bar.setAttribute('data-tippy-content', `<b>${label}</b><br/>${stats.formatted || `${current} / ${max}`}`);
+
+    const value = bar.querySelector('.progress_value');
+    if (value) value.textContent = stats.simple || `${current}/${max}`;
+
+    const fill = bar.querySelector('.progress_box-img');
+    if (fill) {
+      const isFull = typeof stats.isFull === 'boolean' ? stats.isFull : current >= max;
+      fill.classList.toggle('_full', isFull);
+    }
+  }
+
+  function applyUpdatedStats(doc, stats) {
+    if (!stats) return;
+    const view = doc?.defaultView || window;
+
+    if (typeof view.updateStatBars === 'function') {
+      view.updateStatBars(stats);
+    } else {
+      updateProgressBar(doc, SELECTORS.staminaBar, 'Stamina', stats.awake);
+      updateProgressBar(doc, SELECTORS.nerveBar, 'Nerve', stats.nerve);
+
+      const CustomEvt = view.CustomEvent || CustomEvent;
+      doc.dispatchEvent(new CustomEvt('statsUpdated', { detail: stats }));
+    }
+
+    updateCrimeActionAvailability(doc, stats);
+  }
+
+  function readQuickbarSlots(doc) {
+    const view = doc?.defaultView || window;
+    try {
+      const parsed = JSON.parse(view.localStorage.getItem('quickbar_slots') || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writeQuickbarSlots(doc, slots) {
+    const view = doc?.defaultView || window;
+    try {
+      view.localStorage.setItem('quickbar_slots', JSON.stringify(slots || {}));
+    } catch (_) {}
+  }
+
+  function updateQuickbarSlotDom(doc, slot, item) {
+    const slotButton = getSlotButton(doc, slot);
+    if (!slotButton) return;
+
+    const empty = slotButton.querySelector('.quickbar-slot-empty');
+    const itemWrap = slotButton.querySelector('.quickbar-slot-item');
+    const image = slotButton.querySelector('.quickbar-item-img');
+    const quantity = slotButton.querySelector('.quickbar-item-qty');
+
+    if (empty) empty.style.display = 'none';
+    if (itemWrap) itemWrap.style.display = '';
+    if (image) {
+      if (item.image) image.setAttribute('src', item.image);
+      image.setAttribute('alt', item.name || '');
+    }
+    if (quantity) quantity.textContent = String(item.quantity ?? 0);
+
+    slotButton.setAttribute('data-item-id', String(item.id));
+    if (item.name) {
+      slotButton.setAttribute('data-tippy-content', item.name);
+    }
+  }
+
+  function clearQuickbarSlotDom(doc, slot) {
+    const slotButton = getSlotButton(doc, slot);
+    if (!slotButton) return;
+
+    const empty = slotButton.querySelector('.quickbar-slot-empty');
+    const itemWrap = slotButton.querySelector('.quickbar-slot-item');
+    const quantity = slotButton.querySelector('.quickbar-item-qty');
+
+    if (empty) empty.style.display = '';
+    if (itemWrap) itemWrap.style.display = 'none';
+    if (quantity) quantity.textContent = '0';
+
+    slotButton.removeAttribute('data-item-id');
+    slotButton.removeAttribute('data-tippy-content');
+  }
+
+  function syncQuickbarQuantity(doc, slot, itemId, nextQuantity, slotButton) {
+    if (typeof nextQuantity === 'undefined') return;
+
+    const view = doc?.defaultView || window;
+    const normalizedSlot = String(slot);
+    const normalizedQuantity = Number(nextQuantity);
+    const existingButton = slotButton || getSlotButton(doc, slot);
+    const slots = readQuickbarSlots(doc);
+    const stored = slots[slot] || slots[normalizedSlot] || {};
+
+    if (normalizedQuantity > 0) {
+      const nextItem = {
+        ...stored,
+        id: itemId,
+        name:
+          stored.name ||
+          existingButton?.getAttribute('data-tippy-content') ||
+          existingButton?.querySelector('.quickbar-item-img')?.getAttribute('alt') ||
+          '',
+        image:
+          stored.image ||
+          existingButton?.querySelector('.quickbar-item-img')?.getAttribute('src') ||
+          '',
+        quantity: normalizedQuantity
+      };
+
+      if (typeof view.updateQuickbarSlot === 'function') {
+        view.updateQuickbarSlot(slot, nextItem);
+      } else {
+        updateQuickbarSlotDom(doc, slot, nextItem);
+      }
+
+      slots[slot] = nextItem;
+      slots[normalizedSlot] = nextItem;
+    } else {
+      if (typeof view.clearQuickbarSlotByNumber === 'function') {
+        view.clearQuickbarSlotByNumber(slot);
+      } else {
+        clearQuickbarSlotDom(doc, slot);
+      }
+
+      delete slots[slot];
+      delete slots[normalizedSlot];
+    }
+
+    writeQuickbarSlots(doc, slots);
+  }
+
+  function renderCrimeResult(doc, response) {
+    const area = doc.querySelector('#crimeResultArea');
+    if (!area || !response) return;
+
+    const success = response.success === true;
+    const title = success ? 'Success!' : 'Failed!';
+    const message = success
+      ? response.message || 'Crime successful.'
+      : response.error || response.message || 'Crime failed.';
+    const icon = success ? 'check-circle' : 'exclamation-triangle';
+    const className = success ? 'successMessage' : 'errorMessage';
+
+    area.innerHTML =
+      `<div class="message ${className}">` +
+      `<i class="fas fa-${icon}"></i>` +
+      '<div class="errorMessageText">' +
+      `<span class="messageTitle">${title}</span><br />` +
+      `${message}` +
+      '</div>' +
+      '</div>';
+
+    try {
+      area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (_) {}
+  }
+
+  async function postJson(doc, path, payload, label) {
+    const response = await fetch(absoluteGameUrl(doc, path), {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json, text/javascript, */*; q=0.01',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: new URLSearchParams(payload).toString()
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_) {}
+
+    if (!response.ok) {
+      throw new Error(`${label} failed (${response.status})`);
+    }
+    if (!data || typeof data !== 'object') {
+      throw new Error(`${label} returned invalid data`);
+    }
+
+    return data;
+  }
+
   function parseResourceBar(doc, type) {
     const bar = getResourceBarElement(doc, type);
     if (!bar) return null;
@@ -910,8 +1133,25 @@
     const btn = getSlotButton(doc, slot);
     if (!btn) throw new Error(`${kind}: slot ${slot} not found`);
     if (isSlotEmpty(btn)) throw new Error(`${kind}: slot ${slot} is empty`);
-    clickElement(btn);
-    await wait(260);
+    const itemId = btn.getAttribute('data-item-id');
+    if (!itemId) throw new Error(`${kind}: slot ${slot} has no item id`);
+
+    const response = await postJson(
+      doc,
+      'quickbarAjax.php',
+      {
+        action: 'useItem',
+        itemId
+      },
+      `${kind}: quick slot request`
+    );
+
+    if (!response.success) {
+      throw new Error(response.error || `${kind}: failed to use slot ${slot}`);
+    }
+
+    applyUpdatedStats(doc, response.stats);
+    syncQuickbarQuantity(doc, slot, itemId, response.newQuantity, btn);
   }
 
   function getButtonText(el) {
@@ -944,6 +1184,49 @@
     }
 
     return null;
+  }
+
+  async function submitCrimeAction(doc, action) {
+    const crimeId = action?.getAttribute('data-crime-id') || action?.dataset?.crimeId;
+    const crimeName =
+      action?.getAttribute('data-crime-name') ||
+      action?.dataset?.crimeName ||
+      parseCrimeNameFromButton(action) ||
+      '';
+
+    if (!crimeId) {
+      throw new Error('Crime id not found');
+    }
+
+    const response = await postJson(
+      doc,
+      'crimeAjax.php',
+      {
+        action: 'startCrime',
+        crimeId,
+        crimeName
+      },
+      'Crime request'
+    );
+
+    applyUpdatedStats(doc, response.stats);
+    renderCrimeResult(doc, response);
+
+    if (!response.success) {
+      if (response.jailed) {
+        window.setTimeout(() => {
+          try {
+            (doc?.defaultView || window).location.href = absoluteGameUrl(doc, 'jail.php');
+          } catch (_) {
+            window.location.href = absoluteGameUrl(doc, 'jail.php');
+          }
+        }, 2000);
+      }
+
+      throw new Error(response.error || response.message || 'Crime failed.');
+    }
+
+    return response;
   }
 
   function setBusy(busy) {
@@ -1002,7 +1285,6 @@
 
   async function run() {
     let shouldRefresh = false;
-    let submittedAction = false;
     setBusy(true);
 
     try {
@@ -1027,22 +1309,27 @@
 
       const action = findCrimeAction(doc, crimeIndex);
       if (!action) throw new Error(`crime ${crimeIndex} button not found`);
-      clickElement(action);
-      submittedAction = true;
+      await submitCrimeAction(doc, action);
+      setStatus(`Committed crime ${crimeIndex}`, false);
       return shouldRefresh;
     } catch (err) {
       const message = err.message || 'Quick crime failed';
       setStatus(message, true);
       if (/deadlock found when trying to get lock/i.test(message)) shouldRefresh = true;
     } finally {
-      if (!submittedAction) setBusy(false);
+      setBusy(false);
     }
 
     return shouldRefresh;
   }
 
   function refreshPage() {
-    window.location.reload();
+    const doc = getGameDocument();
+    try {
+      (doc?.defaultView || window).location.reload();
+    } catch (_) {
+      window.location.reload();
+    }
   }
 
   function makeDraggable(panel) {
